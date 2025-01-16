@@ -28,7 +28,7 @@ public class Friend{
     @Column(nullable = false)
     private FriendStatus status;
     public enum FriendStatus {
-        pending, accepted, declined
+        pending, accepted, rejected
     }
 
 }

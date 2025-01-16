@@ -38,9 +38,19 @@ public class FriendController {
         }
     }
 
+    @PostMapping("/reject/{friendId}")
+    public ResponseEntity<String> rejectFriendRequest(@RequestParam Long userId, @PathVariable Long friendId) {
+        try {
+            friendService.rejectFriendRequest(userId, friendId);
+            return ResponseEntity.ok("Invitation has been rejected.");
+        } catch (FriendshipNotFoundException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+        }
+    }
+
     @GetMapping("/{userId}")
-    public List<Friend> getFriends(@PathVariable Long userId) {
-        return friendService.getFriends(userId);
+    public List<Friend> getFriend(@PathVariable Long userId) {
+        return friendService.getFriend(userId);
     }
 
     @DeleteMapping("/remove/{friendId}")
@@ -51,5 +61,23 @@ public class FriendController {
         } catch (FriendshipNotFoundException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
         }
+    }
+
+    @GetMapping("/accepted")
+    public List<Friend> getFriends(@RequestParam Long userId) {
+        return friendService.getAcceptedFriends(userId);
+    }
+
+    @GetMapping("/pending")
+    public List<Friend> getPendingRequests(@RequestParam Long userId) {
+        return friendService.getPendingFriends(userId);
+    }
+
+    @GetMapping("/isFriend")
+    public ResponseEntity<Boolean> areFriends(
+            @RequestParam int userId1,
+            @RequestParam int userId2) {
+        boolean areFriends = friendService.areUsersFriends(userId1, userId2);
+        return ResponseEntity.ok(areFriends);
     }
 }
