@@ -8,6 +8,7 @@ import Social_Talk.Friends_Service.Model.Friend;
 import Social_Talk.Friends_Service.Repository.FriendRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,10 +23,16 @@ public class FriendService {
 
     @Transactional
     public void addFriend(Long userId, Long friendId) {
-        Optional<Friend> existingFriendship = friendRepository.findByUserIdAndFriendId(userId, friendId);
 
-        if (existingFriendship.isPresent()) {
-            Friend friend = existingFriendship.get();
+        Optional<Friend> existingFriendship = friendRepository.findByUserIdAndFriendId(userId, friendId);
+        Optional<Friend> reverseFriendship = friendRepository.findByUserIdAndFriendId(friendId, userId);
+        if (existingFriendship.isPresent() || reverseFriendship.isPresent()) {
+            Friend friend = existingFriendship.orElseGet(() ->
+                    reverseFriendship.orElseThrow(() ->
+                            new IllegalStateException("Neither friendship exists")
+                    )
+            );
+
             if (friend.getStatus() == Friend.FriendStatus.accepted) {
                 throw new FriendshipAlreadyExistsException("Friendship already accepted");
             }
@@ -33,9 +40,13 @@ public class FriendService {
                 throw new FriendshipPendingException("Friend request already pending");
             }
 
-            friend.setStatus(Friend.FriendStatus.pending);
-            friendRepository.save(friend);
-            return;
+            if (friend.getStatus() == Friend.FriendStatus.rejected) {
+                friend.setStatus(Friend.FriendStatus.pending);
+                friendRepository.save(friend);
+                return;
+            }
+
+            throw new IllegalStateException("Unexpected friendship status: " + friend.getStatus());
         }
 
         Friend friend = new Friend();
@@ -43,8 +54,13 @@ public class FriendService {
         friend.setFriendId(friendId);
         friend.setStatus(Friend.FriendStatus.pending);
 
-        friendRepository.save(friend);
+        try {
+            friendRepository.save(friend);
+        } catch (DataIntegrityViolationException e) {
+            throw new FriendshipAlreadyExistsException("Friendship already exists, cannot create a duplicate.");
+        }
     }
+
 
     @Transactional
     public void acceptFriendRequest(Long userId, Long friendId) {
@@ -77,11 +93,11 @@ public class FriendService {
     }
 
     public List<Friend> getAcceptedFriends(Long userId) {
-        return friendRepository.findByUserIdAndStatus(userId, Friend.FriendStatus.accepted);
+        return friendRepository.findFriendsByUserIdAndStatus(userId, Friend.FriendStatus.accepted);
     }
 
-    public List<Friend> getPendingFriends(Long userId) {
-        return friendRepository.findByUserIdAndStatus(userId, Friend.FriendStatus.pending);
+    public List<Friend> getPendingFriendsReceived(Long userId) {
+        return friendRepository.findByFriendIdAndStatus(userId, Friend.FriendStatus.pending);
     }
 
     @Transactional

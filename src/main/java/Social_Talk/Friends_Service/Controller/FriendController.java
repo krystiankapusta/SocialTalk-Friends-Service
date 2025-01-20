@@ -2,6 +2,7 @@ package Social_Talk.Friends_Service.Controller;
 
 import Social_Talk.Friends_Service.Exception.FriendshipAlreadyExistsException;
 import Social_Talk.Friends_Service.Exception.FriendshipNotFoundException;
+import Social_Talk.Friends_Service.Exception.FriendshipPendingException;
 import Social_Talk.Friends_Service.Model.Friend;
 import Social_Talk.Friends_Service.Service.FriendService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +25,11 @@ public class FriendController {
             friendService.addFriend(userId, friendId);
             return ResponseEntity.ok("Invitation has been sent.");
         } catch (FriendshipAlreadyExistsException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("This friendship is already accepted");
+        } catch (FriendshipPendingException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("A friend request is already pending");
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred");
         }
     }
 
@@ -70,7 +75,7 @@ public class FriendController {
 
     @GetMapping("/pending")
     public List<Friend> getPendingRequests(@RequestParam Long userId) {
-        return friendService.getPendingFriends(userId);
+        return friendService.getPendingFriendsReceived(userId);
     }
 
     @GetMapping("/isFriend")
